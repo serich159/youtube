@@ -352,7 +352,7 @@ class Youtube
             $this->client->setAccessToken($accessToken);
         }
         if (is_null($accessToken = $this->client->getAccessToken())) {
-            throw new \Exception('An access token is required.');
+            return false;
         }
 
         $accessToken = json_decode($accessToken);
