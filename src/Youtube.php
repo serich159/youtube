@@ -302,6 +302,23 @@ class Youtube
         return $this->client = $client;
     }
 
+    public function createAuthUrl()
+    {
+        $authUrl = $this->client->createAuthUrl();
+        return $authUrl;
+    }
+
+    public function authenticate($code, $user_id = null)
+    {
+        $this->client->authenticate($code);
+        $accessToken = $this->client->getAccessToken();
+        if ($accessToken) {
+            $this->saveAccessTokenToDB($accessToken, $user_id);
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Saves the access token to the database.
      *

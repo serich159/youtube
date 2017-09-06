@@ -52,6 +52,11 @@ return [
          */
         'redirect_back_uri' => '/',
 
+        /**
+         * The redirect back URI, when youtube auth failed.
+         */
+        'redirect_failed_uri' => '/',
+
     ]
 
 ];
