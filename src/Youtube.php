@@ -77,7 +77,7 @@ class Youtube
     public function upload($path, array $data = [], $privacyStatus = 'public', $user_id = null)
     {
         if (!file_exists($path)) {
-            throw new Exception('Video file does not exist at path: "'. $path .'". Provide a full path to the file before attempting to upload.');
+            throw new \Exception('Video file does not exist at path: "'. $path .'". Provide a full path to the file before attempting to upload.');
         }
 
         $this->handleAccessToken($user_id);
@@ -149,9 +149,9 @@ class Youtube
             // Set the Snippet from Uploaded Video
             $this->snippet = $status['snippet'];
         } catch (\Google_Service_Exception $e) {
-            throw new Exception($e->getMessage());
+            throw new \Exception($e->getMessage());
         } catch (\Google_Exception $e) {
-            throw new Exception($e->getMessage());
+            throw new \Exception($e->getMessage());
         }
 
         return $this;
@@ -198,9 +198,9 @@ class Youtube
             $this->client->setDefer(false);
             $this->thumbnailUrl = $status['items'][0]['default']['url'];
         } catch (\Google_Service_Exception $e) {
-            throw new Exception($e->getMessage());
+            throw new \Exception($e->getMessage());
         } catch (\Google_Exception $e) {
-            throw new Exception($e->getMessage());
+            throw new \Exception($e->getMessage());
         }
 
         return $this;
@@ -217,8 +217,8 @@ class Youtube
     {
         $this->handleAccessToken($user_id);
 
-        if (!$this->exists($id)) {
-            throw new Exception('A video matching id "'. $id .'" could not be found.');
+        if (!$this->exists($id, $user_id)) {
+            throw new \Exception('A video matching id "'. $id .'" could not be found.');
         }
 
         return $this->youtube->videos->delete($id);
@@ -243,6 +243,39 @@ class Youtube
 
         return true;
     }
+
+    public function getChannels($user_id = null)
+    {
+        $this->handleAccessToken($user_id);
+        $response = $this->youtube->channels->listChannels('contentDetails', array('mine' => 'true'));
+        if (empty($response->items)) {
+            return false;
+        }
+        return $response->items;
+    }
+
+    public function getDefaultChannelUrl($user_id)
+    {
+        $channels = $this->getChannels($user_id);
+        $channel = $channels[0]??false;
+        if ($channel) {
+            $id = $channel->id;
+            return "https://youtube.com/channel/$id";
+        }
+        return false;
+    }
+
+    public function getDefaultUploadUrl($user_id)
+    {
+        $channels = $this->getChannels($user_id);
+        $channel = $channels[0]??false;
+        if ($channel) {
+            $id = $channel->contentDetails->relatedPlaylists->uploads;
+            return "https://youtube.com/playlist?list=$id";
+        }
+        return false;
+    }
+
 
     /**
      * Return the Video ID
@@ -285,7 +318,7 @@ class Youtube
         if (!$this->app->config->get('youtube.client_id') ||
             !$this->app->config->get('youtube.client_secret')
         ) {
-            throw new Exception('A Google "client_id" and "client_secret" must be configured.');
+            throw new \Exception('A Google "client_id" and "client_secret" must be configured.');
         }
 
         $client->setClientId($this->app->config->get('youtube.client_id'));
@@ -365,17 +398,14 @@ class Youtube
      */
     public function hasRefreshToken($user_id = null)
     {
-        if ($accessToken = $this->getLatestAccessTokenFromDB($user_id)) {
-            $this->client->setAccessToken($accessToken);
+        if ($dbAuthToken = $this->getLatestAccessTokenFromDB($user_id)) {
+            $this->client->setAccessToken($dbAuthToken);
         }
-        if (is_null($accessToken = $this->client->getAccessToken())) {
+        if (is_null($authToken = $this->client->getAccessToken())) {
             return false;
         }
-
-        $accessToken = json_decode($accessToken);
-
         // If we have a "refresh_token"
-        if (property_exists($accessToken, 'refresh_token')) {
+        if ($authToken['refresh_token']??false) {
             return true;
         }
         return false;
@@ -388,10 +418,10 @@ class Youtube
      */
     public function isAccessTokenExpired($user_id = null)
     {
-        if ($accessToken = $this->getLatestAccessTokenFromDB($user_id)) {
-            $this->client->setAccessToken($accessToken);
+        if ($dbAuthToken = $this->getLatestAccessTokenFromDB($user_id)) {
+            $this->client->setAccessToken($dbAuthToken);
         }
-        if (is_null($accessToken = $this->client->getAccessToken())) {
+        if (is_null($authToken = $this->client->getAccessToken())) {
             throw new \Exception('An access token is required.');
         }
 
@@ -409,21 +439,19 @@ class Youtube
      */
     public function handleAccessToken($user_id = null)
     {
-        if ($accessToken = $this->getLatestAccessTokenFromDB($user_id)) {
-            $this->client->setAccessToken($accessToken);
+        if ($dbAuthToken = $this->getLatestAccessTokenFromDB($user_id)) {
+            $this->client->setAccessToken($dbAuthToken);
         }
 
-        if (is_null($accessToken = $this->client->getAccessToken())) {
+        if (is_null($authToken = $this->client->getAccessToken())) {
             throw new \Exception('An access token is required.');
         }
 
         if ($this->client->isAccessTokenExpired()) {
-            $accessToken = json_decode($accessToken);
-
             // If we have a "refresh_token"
-            if (property_exists($accessToken, 'refresh_token')) {
+            if ($authToken['refresh_token']??false) {
                 // Refresh the access token
-                $this->client->refreshToken($accessToken->refresh_token);
+                $this->client->refreshToken($authToken['refresh_token']);
 
                 // Save the access token
                 $this->saveAccessTokenToDB($this->client->getAccessToken(), $user_id);
