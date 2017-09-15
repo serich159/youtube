@@ -254,7 +254,7 @@ class Youtube
         return $response->items;
     }
 
-    public function getDefaultChannelUrl($user_id)
+    public function getDefaultChannelUrl($user_id = null)
     {
         $channels = $this->getChannels($user_id);
         $channel = $channels[0]??false;
@@ -265,7 +265,7 @@ class Youtube
         return false;
     }
 
-    public function getDefaultUploadUrl($user_id)
+    public function getDefaultUploadUrl($user_id = null)
     {
         $channels = $this->getChannels($user_id);
         $channel = $channels[0]??false;
@@ -274,6 +274,12 @@ class Youtube
             return "https://youtube.com/playlist?list=$id";
         }
         return false;
+    }
+
+    public function getChannelCount($user_id = null)
+    {
+        $channels = $this->getChannels($user_id);
+        return count($channels);
     }
 
 
